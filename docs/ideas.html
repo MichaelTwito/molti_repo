@@ -3,56 +3,231 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="light dark" />
   <title>Molti — Startup Ideas</title>
   <style>
-    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; line-height: 1.5; margin: 32px; max-width: 900px; }
-    h1,h2,h3 { line-height: 1.2; }
-    code { background: #f4f4f4; padding: 2px 6px; border-radius: 6px; }
-    .card { border: 1px solid #eee; border-radius: 12px; padding: 16px 18px; margin: 14px 0; }
-    .meta { color: #555; font-size: 0.95em; }
-    a { color: #0b5fff; text-decoration: none; }
-    a:hover { text-decoration: underline; }
+    :root {
+      --bg: #0b1020;
+      --panel: rgba(255,255,255,0.06);
+      --panel-2: rgba(255,255,255,0.09);
+      --text: rgba(255,255,255,0.92);
+      --muted: rgba(255,255,255,0.65);
+      --border: rgba(255,255,255,0.12);
+      --link: #7cc0ff;
+      --link2: #9be2ff;
+      --accent: #8b5cf6;
+      --accent2: #22c55e;
+      --warn: #f59e0b;
+      --shadow: 0 10px 30px rgba(0,0,0,0.35);
+      --radius: 18px;
+    }
+
+    @media (prefers-color-scheme: light) {
+      :root {
+        --bg: #f7f8fb;
+        --panel: rgba(0,0,0,0.04);
+        --panel-2: rgba(0,0,0,0.06);
+        --text: rgba(0,0,0,0.88);
+        --muted: rgba(0,0,0,0.62);
+        --border: rgba(0,0,0,0.10);
+        --link: #0b5fff;
+        --link2: #0a7cff;
+        --shadow: 0 10px 25px rgba(0,0,0,0.12);
+      }
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background: radial-gradient(1200px 800px at 10% 10%, rgba(139,92,246,0.25), transparent 50%),
+                  radial-gradient(1000px 600px at 80% 0%, rgba(34,197,94,0.16), transparent 45%),
+                  var(--bg);
+      color: var(--text);
+    }
+
+    .wrap { max-width: 980px; margin: 0 auto; padding: 38px 20px 60px; }
+
+    header {
+      display: grid;
+      gap: 10px;
+      margin-bottom: 22px;
+    }
+
+    .title {
+      font-size: 34px;
+      letter-spacing: -0.02em;
+      margin: 0;
+    }
+
+    .subtitle {
+      margin: 0;
+      color: var(--muted);
+      font-size: 15px;
+    }
+
+    .topbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--panel);
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 14px;
+      margin-top: 18px;
+    }
+
+    .card {
+      grid-column: span 12;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: linear-gradient(180deg, var(--panel), transparent 170%);
+      box-shadow: var(--shadow);
+      padding: 18px 18px 14px;
+    }
+
+    @media (min-width: 860px) {
+      .card.half { grid-column: span 6; }
+    }
+
+    .card h2 {
+      margin: 0 0 6px;
+      font-size: 18px;
+      letter-spacing: -0.01em;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .badge {
+      font-size: 12px;
+      padding: 4px 9px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--panel-2);
+      color: var(--muted);
+    }
+
+    .badge.accent { border-color: rgba(139,92,246,0.35); color: var(--text); }
+    .badge.green { border-color: rgba(34,197,94,0.35); color: var(--text); }
+
+    .desc {
+      margin: 0 0 12px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      padding: 0;
+      margin: 0;
+      list-style: none;
+    }
+
+    a.link {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 11px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: var(--panel);
+      color: var(--link);
+      text-decoration: none;
+      font-size: 13px;
+    }
+
+    a.link:hover { border-color: rgba(124,192,255,0.45); color: var(--link2); }
+
+    .footer {
+      margin-top: 24px;
+      color: var(--muted);
+      font-size: 13px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+      justify-content: space-between;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+    }
+
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
   </style>
 </head>
 <body>
-  <h1>Molti — Startup Ideas</h1>
-  <p class="meta">A lightweight index page that links into the repo docs and project folders.</p>
+  <div class="wrap">
+    <header>
+      <h1 class="title">Molti — Startup Ideas</h1>
+      <p class="subtitle">A curated index into the repo’s project docs (PRDs/HLDs). Built for quick browsing from a phone.</p>
+      <div class="topbar">
+        <span class="pill"><span class="mono">docs/ideas.html</span></span>
+        <span class="pill">Canonical list: <a class="mono" href="../startup_ideas.md">startup_ideas.md</a></span>
+      </div>
+    </header>
 
-  <div class="card">
-    <h2>Agent Observability Dashboard</h2>
-    <ul>
-      <li><a href="../docs/PRD-agent-observability-dashboard.md">PRD</a></li>
-      <li><a href="../projects/agent-observability-dashboard/HLD.md">HLD</a></li>
-      <li><a href="../projects/agent-observability-dashboard/PRD-gaps-and-questions.md">PRD gaps</a></li>
-    </ul>
+    <div class="grid">
+      <section class="card half">
+        <h2>Agent Observability Dashboard <span class="badge accent">AgentOps</span></h2>
+        <p class="desc">Multi-tenant run timeline, diff, policies, approvals, redaction, audit.</p>
+        <ul class="links">
+          <li><a class="link" href="../docs/PRD-agent-observability-dashboard.md">PRD</a></li>
+          <li><a class="link" href="../projects/agent-observability-dashboard/HLD.md">HLD</a></li>
+          <li><a class="link" href="../projects/agent-observability-dashboard/PRD-gaps-and-questions.md">PRD gaps</a></li>
+        </ul>
+      </section>
+
+      <section class="card half">
+        <h2>PromptPrecision <span class="badge green">Rick + Talia</span></h2>
+        <p class="desc">Prompt → specialized small open-weight model package + eval report (adapters now, pruning later).</p>
+        <ul class="links">
+          <li><a class="link" href="../projects/promptprecision/README.md">README</a></li>
+          <li><a class="link" href="../projects/promptprecision/PRD-outline.md">PRD outline</a></li>
+          <li><a class="link" href="../projects/promptprecision/HLD.md">HLD</a></li>
+        </ul>
+      </section>
+
+      <section class="card half">
+        <h2>Music Agents <span class="badge">Outreach</span></h2>
+        <p class="desc">Playlisting/outreach + compliance-first sending and tracking.</p>
+        <ul class="links">
+          <li><a class="link" href="../projects/music-agents/PRD-outline.md">PRD outline</a></li>
+          <li><a class="link" href="../projects/music-agents/HLD.md">HLD</a></li>
+        </ul>
+      </section>
+
+      <section class="card half">
+        <h2>SynthCopilot <span class="badge">Audio</span></h2>
+        <p class="desc">Text → synth patch + variations + macro mapping recipe.</p>
+        <ul class="links">
+          <li><a class="link" href="../projects/synthcopilot/PRD-outline.md">PRD outline</a></li>
+          <li><a class="link" href="../projects/synthcopilot/HLD.md">HLD</a></li>
+        </ul>
+      </section>
+    </div>
+
+    <div class="footer">
+      <div>Tip: open any link in a new tab to keep this index handy.</div>
+      <div class="mono">Last updated: see git history</div>
+    </div>
   </div>
-
-  <div class="card">
-    <h2>Music Agents</h2>
-    <ul>
-      <li><a href="../projects/music-agents/PRD-outline.md">PRD outline</a></li>
-      <li><a href="../projects/music-agents/HLD.md">HLD</a></li>
-    </ul>
-  </div>
-
-  <div class="card">
-    <h2>SynthCopilot</h2>
-    <ul>
-      <li><a href="../projects/synthcopilot/PRD-outline.md">PRD outline</a></li>
-      <li><a href="../projects/synthcopilot/HLD.md">HLD</a></li>
-    </ul>
-  </div>
-
-  <div class="card">
-    <h2>PromptPrecision (Rick + Talia)</h2>
-    <ul>
-      <li><a href="../projects/promptprecision/README.md">README</a></li>
-      <li><a href="../projects/promptprecision/PRD-outline.md">PRD outline</a></li>
-      <li><a href="../projects/promptprecision/HLD.md">HLD</a></li>
-    </ul>
-  </div>
-
-  <hr />
-  <p class="meta">Canonical raw list: <a href="../startup_ideas.md"><code>startup_ideas.md</code></a></p>
 </body>
 </html>
