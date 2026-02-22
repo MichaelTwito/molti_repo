@@ -101,6 +101,83 @@ Response JSON (200):
 ### POST /jobs/{id}/cancel
 - transitions queued|running → canceled (best effort).
 
+## Auth / RBAC + access boundaries (MVP, normative)
+### Actors
+- **Authenticated user**: owns jobs they create.
+- **Admin**: full read access for support/abuse handling (audited).
+- **Anonymous via share token**: limited read-only access to a single shared job’s exported artifacts.
+
+### Ownership + tenancy
+- Every `job` has exactly one **owner** (`user_id`).
+- Jobs, PatchSpecs, and artifacts are **tenant-isolated**: by default only the owner (or admin) can read them.
+
+### Access rules (wire contract)
+- **Create job**: requires authenticated user.
+  - `POST /jobs` → 401 if not authenticated.
+- **Read job**:
+  - `GET /jobs/{id}` → 200 for owner/admin; 403 for non-owner; 404 if not found (do not leak existence).
+- **Cancel job**:
+  - `POST /jobs/{id}/cancel` → 200/202 for owner/admin; 403 for non-owner; 409 if not cancelable.
+- **Download artifacts** (`bundle_url`, `manifest_url`):
+  - Owner/admin can always access while retained.
+  - Anonymous access ONLY via a valid share token (see below).
+
+### Share tokens (read-only links)
+- Scope: a share token is bound to **one job_id** (and its exported bundle).
+- Permissions: **read-only**; grants access to:
+  - bundle download (`bundle.zip`)
+  - manifest (`meta/manifest.json`)
+  - optional: a minimal public job view (`GET /share/{token}`) containing non-sensitive fields (status, synth_target, daw_target, created_at)
+- Prohibitions: share token MUST NOT allow job cancel, regeneration, template listing, or access to other jobs.
+
+Endpoints (normative):
+- `POST /jobs/{id}/share-tokens`
+  - Creates a new share token (owner/admin only).
+  - Request: `{ "expires_in_days": 1..30 (optional; default 7) }`
+  - Response (201): `{ "token": string, "share_url": string, "expires_at": RFC3339 }`
+- `GET /jobs/{id}/share-tokens`
+  - Lists active tokens (owner/admin only).
+  - Response (200): `{ "tokens": [ {"token_id": string, "created_at": RFC3339, "expires_at": RFC3339, "revoked": boolean } ] }`
+- `DELETE /jobs/{id}/share-tokens/{token_id}`
+  - Revokes a token (owner/admin only). Response: 204.
+
+Token presentation (normative):
+- Share token MAY be presented either as:
+  - query param `?share_token=...` on artifact URLs, OR
+  - header `Authorization: ShareToken <token>`.
+
+## API edge contracts (MVP, normative)
+### Status codes (by category)
+- 200: successful GET, cancel accepted/processed
+- 201: resource created (e.g., share token)
+- 202: accepted for async processing (optional for cancel)
+- 400: malformed JSON / wrong types
+- 401: authentication required/failed
+- 403: authenticated but not permitted
+- 404: not found (or intentionally indistinguishable from forbidden)
+- 409: conflict (e.g., cancel not allowed in current state, idempotency conflict)
+- 410: expired or revoked share token (when using `/share/{token}` style endpoints)
+- 413: payload too large (prompt/tags)
+- 422: semantic validation failed (PatchSpec / macro / variation constraints)
+- 429: rate limit exceeded
+- 5xx: server failures
+
+### Error envelope (all non-2xx)
+`{ "error": { "code": string, "message": string, "retryable": boolean, "details"?: object } }`
+
+### Validation error details (422)
+- `error.code = "VALIDATION_ERROR"`
+- `error.details` shape (normative):
+  - `{ "violations": [ { "path": string (JSON Pointer), "rule": string, "message": string, "expected"?: any, "actual"?: any } ] }`
+
+### Rate limits (MVP defaults)
+- Authenticated users:
+  - `POST /jobs`: **10 requests/min/user** (burst 3)
+  - `GET /jobs/{id}`: **120 requests/min/user**
+- Anonymous (share token):
+  - artifact downloads: **60 requests/min/token**
+- 429 responses MUST include `Retry-After` (seconds) and may include `X-RateLimit-*` headers.
+
 ## Limits (MVP defaults)
 - Max concurrent jobs/user: 2
 - Max bundle.zip size: 5MB

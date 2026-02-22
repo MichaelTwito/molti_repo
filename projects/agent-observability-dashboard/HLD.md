@@ -57,3 +57,69 @@ Semantics:
 - Rate limits: 429 + Retry-After + X-RateLimit-* headers.
 - Cursor pagination only.
 - Retention: hard delete runs/steps per plan; audit longer with tombstones/hashes.
+
+---
+
+## Diff endpoint — implementation notes (v1)
+
+API contract:
+- GET `/v1/diff?runA=&runB=&normalize_profile=&mode=&cursor=&limit=`
+- Pagination is cursor-based over deterministic ordering of diff items.
+
+Algorithm (steps-mode):
+- Load steps ordered by `(seq, step_id)`.
+- Align by seq; gaps produce `step_added/step_removed`.
+- Field diff: JSON structural diff on `payload`.
+- Redaction-aware:
+  - Any path in `redaction_meta.paths` is treated as opaque; emit `field_redacted`.
+  - Never attempt to infer original values.
+
+Caching:
+- Optional: Redis pages keyed by `(tenant, runA, runB, normalize_profile)` with short TTL.
+
+Limits:
+- Hard cap steps compared; return `413 diff_too_large`.
+- Cross-tenant runs always `404`.
+
+---
+
+## Policies endpoints + RBAC enforcement (v1)
+Endpoints:
+- POST `/v1/policies` (Admin)
+- GET `/v1/policies` (Viewer+)
+- POST `/v1/policies/{policy_id}:activate` (Admin)
+
+Storage:
+- partial unique index: `UNIQUE(tenant_id, project_id) WHERE status='active'`.
+
+RBAC:
+- Enforced via DRF permissions + project scoping in queryset.
+
+---
+
+## Approvals endpoints — idempotency + DecisionToken issuance (v1)
+Endpoints:
+- POST `/v1/approvals` (SDK ingest key allowed; also Admin for UI)
+- GET `/v1/approvals` (Viewer+)
+- POST `/v1/approvals/{id}:approve` (Approver/Admin) → returns DecisionToken JWT
+- POST `/v1/approvals/{id}:deny` (Approver/Admin)
+
+Idempotency:
+- Apply persisted Idempotency-Key keyed by `(tenant_id, project_id, endpoint, key)`.
+- Hash via RFC8785 JCS; conflict => `409`.
+
+State machine:
+- `pending` → `approved` (mint token) or `denied`
+- `pending` → `expired` via TTL job
+
+DecisionToken:
+- Claims include `jti`, `nonce`, tenant/project/run/tool/tool_args_hash, approval_id, policy_id, exp/iat.
+- Replay protection via `decision_token_nonces` table; consume on tool execution.
+
+---
+
+## `redaction_meta` — storage and how it affects diff/query (v1)
+- Steps store **redacted JSONB only**.
+- Store `redaction_meta` alongside payload.
+- Diff compares stored payloads; redacted paths are opaque.
+- Do not support server-side filtering on redacted paths.
