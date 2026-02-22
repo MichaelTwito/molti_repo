@@ -15,31 +15,63 @@
 - FileAsset
 - ActivityEvent (append-only audit)
 
-## Wedge A: outreach-specific entities
+---
+
+## Wedge A: outreach subsystem
+
+### Core entities
 - Campaign
 - Curator
 - Playlist
 - Prospect (campaign↔curator/playlist)
-- OutboundMessage / MessageThread
-- SequenceStep
+- **MailboxConnection** (OAuth identity, provider, email, status)
+- MessageThread (external thread IDs)
+- OutboundMessage (subject/body/template version)
+- SequenceStep (scheduled follow-ups)
 - Outcome
+- **SuppressionEntry** (email, reason: unsubscribe/bounce/manual)
+- **MessageSendAttempt** (idempotency key, provider msg id, error category)
 
-## Wedge A workflows
-- curator discovery + scoring
-- draft generation
-- throttled send
-- follow-up scheduler
-- reply detection (Gmail)
+### Gmail integration (MVP)
+- Send: Gmail API `users.messages.send`
+- Reply detection: periodic polling via Gmail History API (or thread fetch), keyed by Gmail `threadId`
+- Store mapping: internal MessageThread ↔ Gmail threadId
+- Heuristics handling: bounces/OOO/auto-replies; mark + suppress.
 
-## Wedge B: rights/royalties entities
+### Send correctness + deliverability
+- Per-mailbox rate limiting (token bucket) + org-level caps
+- Celery queues separated by concern: `send`, `enrich`, `parse`
+- Exactly-once-ish semantics for send:
+  - idempotency key per (mailbox, campaign, prospect, sequence_step)
+  - retry-safe (no double-send)
+- Stop rules enforced centrally (reply/unsubscribe/bounce/manual)
+
+### Discovery reality
+- Spotify yields lead metadata; **contacts come from CSV/manual import** or approved enrichment providers.
+
+---
+
+## Wedge B: rights/royalties subsystem
+
+### Entities
 - Work vs Recording
 - Party, Identifier
 - Split, Contract
 - ValidationIssue
 - Task/checklist
 
+### Workflows
+- OCR/extraction pipeline → review/confirm UI → validation rules engine → checklist/tasks/reminders
+
+---
+
+## Security & privacy
+- Encrypt OAuth tokens at rest (field-level + KMS where available)
+- Least-privilege scopes; revoke/purge path
+- Retention policy (message bodies/headers) + org deletion/export support
+- Strong audit logs for sends/edits/exports
+
 ## Scalability
 - composite indexes by (org_id, status, created_at)
-- partition append-only tables later
-- idempotency keys for sends/ingestion
-- strong audit logs; encryption-at-rest for sensitive docs
+- partition append-only tables later (ActivityEvent, OutboundMessage, SendAttempt)
+- observability metrics: sends/day, bounce rate, reply rate, queue depth, step lag
