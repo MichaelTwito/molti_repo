@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="light dark" />
+  <title>Molti — Doc Viewer</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/github-markdown-css@5/github-markdown.min.css">
+  <style>
+    :root { --bg: #0b1020; --panel: rgba(255,255,255,0.06); --text: rgba(255,255,255,0.92); --muted: rgba(255,255,255,0.65); --border: rgba(255,255,255,0.12); --link:#7cc0ff; }
+    @media (prefers-color-scheme: light){ :root{ --bg:#f7f8fb; --panel: rgba(0,0,0,0.04); --text: rgba(0,0,0,0.88); --muted: rgba(0,0,0,0.62); --border: rgba(0,0,0,0.10); --link:#0b5fff; } }
+    body{ margin:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background: var(--bg); color: var(--text); }
+    .wrap{ max-width: 980px; margin:0 auto; padding: 18px 16px 60px; }
+    .top{ display:flex; flex-wrap:wrap; gap:10px; align-items:center; justify-content:space-between; padding: 12px 12px; border:1px solid var(--border); border-radius: 14px; background: var(--panel); }
+    a{ color: var(--link); text-decoration:none; }
+    a:hover{ text-decoration: underline; }
+    .path{ font-size: 13px; color: var(--muted); overflow-wrap:anywhere; }
+    .content{ margin-top: 14px; padding: 18px 18px; border:1px solid var(--border); border-radius: 14px; background: rgba(255,255,255,0.03); }
+    /* github-markdown-css expects a white-ish background; adapt a bit */
+    .markdown-body{ background: transparent; color: inherit; }
+    .error{ color: #ef4444; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <div>
+        <div><a href="ideas.html">← Ideas index</a></div>
+        <div class="path" id="path"></div>
+      </div>
+      <div class="path"><a id="raw" href="#" target="_blank" rel="noreferrer">Open raw</a></div>
+    </div>
+
+    <div class="content markdown-body" id="content">Loading…</div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script>
+    (function () {
+      const params = new URLSearchParams(location.search);
+      const p = params.get('path');
+      const pathEl = document.getElementById('path');
+      const rawEl = document.getElementById('raw');
+      const contentEl = document.getElementById('content');
+
+      if (!p) {
+        pathEl.textContent = 'Missing ?path=';
+        contentEl.innerHTML = '<div class="error">Missing ?path= parameter</div>';
+        return;
+      }
+
+      // basic safety: only allow .md
+      if (!p.endsWith('.md')) {
+        pathEl.textContent = p;
+        contentEl.innerHTML = '<div class="error">Only .md files are supported.</div>';
+        return;
+      }
+
+      pathEl.textContent = p;
+      rawEl.href = p;
+
+      fetch(p)
+        .then(r => {
+          if (!r.ok) throw new Error(`HTTP ${r.status}`);
+          return r.text();
+        })
+        .then(md => {
+          contentEl.innerHTML = marked.parse(md, { mangle: false, headerIds: true });
+        })
+        .catch(err => {
+          contentEl.innerHTML = `<div class="error">Failed to load ${p}\n${err}</div>`;
+        });
+    })();
+  </script>
+</body>
+</html>
