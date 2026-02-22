@@ -19,6 +19,9 @@
     /* github-markdown-css expects a white-ish background; adapt a bit */
     .markdown-body{ background: transparent; color: inherit; }
     .error{ color: #ef4444; white-space: pre-wrap; }
+
+    /* Mermaid container tweaks */
+    .mermaid { margin: 14px 0; padding: 12px; border-radius: 12px; border: 1px solid var(--border); background: rgba(255,255,255,0.02); overflow-x: auto; }
   </style>
 </head>
 <body>
@@ -35,7 +38,10 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
   <script>
+    mermaid.initialize({ startOnLoad: false, theme: 'dark', securityLevel: 'strict' });
+
     (function () {
       const params = new URLSearchParams(location.search);
       const p = params.get('path');
@@ -66,6 +72,22 @@
         })
         .then(md => {
           contentEl.innerHTML = marked.parse(md, { mangle: false, headerIds: true });
+
+          // Render Mermaid blocks: ```mermaid ...```
+          const blocks = contentEl.querySelectorAll('pre > code.language-mermaid');
+          blocks.forEach((code, idx) => {
+            const pre = code.parentElement;
+            const div = document.createElement('div');
+            div.className = 'mermaid';
+            div.textContent = code.textContent;
+            // Replace <pre><code>.. with <div class="mermaid">..
+            pre.replaceWith(div);
+          });
+
+          // Respect light/dark automatically
+          const isLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+          mermaid.initialize({ startOnLoad: false, theme: isLight ? 'default' : 'dark', securityLevel: 'strict' });
+          mermaid.run({ querySelector: '.mermaid' });
         })
         .catch(err => {
           contentEl.innerHTML = `<div class="error">Failed to load ${p}\n${err}</div>`;
