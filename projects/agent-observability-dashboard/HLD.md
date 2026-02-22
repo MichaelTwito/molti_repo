@@ -1,103 +1,59 @@
 # Agent Observability Dashboard — High-level design (Python/Django)
 
 ## Architecture
-- **Django + DRF**: ingestion + query + diff + policies/approvals APIs
-- **Postgres**: runs/steps/policies/approvals/audit (JSONB payloads; redacted-only v1)
-- **Celery + Redis**: rollups, diff precompute/cache, retention, notifications
-- Optional: **S3** for large artifacts (store references in DB)
+- Django + DRF: ingestion + query + diff + policies/approvals
+- Postgres: runs/steps/policies/approvals/audit (JSONB payloads; redacted-only v1)
+- Celery + Redis: rollups, diff cache, retention, notifications
+- Optional S3: large artifacts by reference
 
-## Policies/Approvals (enforcement boundary) — v1 decision
-V1 is **enforcing** for gated tools:
+## Policies/Approvals — enforcing (v1)
+V1 is enforcing for gated tools:
 - Server evaluates policy and issues a signed DecisionToken.
-- SDK MUST present a valid DecisionToken to proceed with tool execution.
-- All decisions (including break-glass) are written to AuditLog and as Steps.
+- SDK must present a valid DecisionToken to proceed with tool execution.
 
-DecisionToken requirements:
-- Signed with Ed25519 (preferred) or HMAC-SHA256
-- Claims: tenant_id, project_id, run_id, step_id, tool_name, payload_hash, decision, issued_at, exp, nonce
-- Replay protection: store nonce in DB with UNIQUE constraint until exp
-- Key rotation: support multiple active signing keys with `kid`
+DecisionToken format (v1):
+- JWT (JWS) with alg=EdDSA when using Ed25519.
+- JWKS: GET /v1/keys/jwks.json
+- Max lifetime: 10 minutes; allow 60s skew.
 
-## Ingestion contract (v1 defaults)
-- Steps are **append-only** (no mutation). Late-arriving info becomes a new step.
-- Server assigns monotonic `seq` per run; supports concurrent writers.
-- `POST /v1/runs/{run_id}/steps` is batch + idempotent:
-  - `Idempotency-Key` required; scoped to (tenant, project, run)
-  - TTL: 7 days
-  - replay w/ same payload returns stored response
-  - replay w/ different payload returns 409
-- Batch semantics: **all-or-nothing** transaction.
-- Hard limits: max 200 steps/batch; max 256KB JSON per step; max 10MB request.
-- Run lifecycle: `POST /runs` creates status=running; `POST /runs/{id}:finish` finalizes status/timestamps.
+Replay protection:
+- nonce is consumed at tool-execution time.
+- UNIQUE(tenant_id, nonce) until exp; reuse => 409 token_replay.
+
+## Ingestion contract (v1)
+- Steps append-only; late info becomes new step.
+- Server assigns monotonic seq per run.
+- Batch ingest is idempotent via Idempotency-Key.
 
 ## Idempotency (implementation detail)
-Create table `ingest_idempotency_keys`:
-- tenant_id, project_id, run_id
-- key (text)
-- request_hash (sha256 of canonicalized request body)
-- first_seen_at, expires_at
-- response_json (assigned seq range + created step_ids)
-Constraints:
-- UNIQUE(tenant_id, project_id, run_id, key)
+Table ingest_idempotency_keys:
+- tenant_id, project_id, run_id, key
+- request_hash (sha256)
+- response_json
+- expires_at
 
-## Step ordering / concurrency (Postgres)
-To assign monotonic `seq` per run under concurrency:
-- Maintain `runs.next_seq` integer column.
-- Ingest transaction:
-  1) SELECT run FOR UPDATE
-  2) allocate [next_seq, next_seq + batch_len - 1]
-  3) update runs.next_seq += batch_len
-  4) insert steps with assigned seq
+Hashing:
+- request_hash = SHA-256 over RFC 8785 JSON Canonicalization Scheme (JCS) of request body.
 
-## Core data model (tenant-scoped)
-- Tenant, Project
-- APIKey (hashed)
-- Run (denorm fields for listing/filtering)
-- Step (seq unique per run; type/name/payload JSONB + redaction_meta + payload_hash)
-- PolicySet (versioned)
-- ApprovalRequest + ApprovalDecision (also written as Step)
-- AuditLog (append-only)
+Semantics:
+- same key + same hash => return stored response
+- same key + different hash => 409
 
-## API (v1)
-- POST /v1/runs
-- POST /v1/runs/{run_id}/steps
-- POST /v1/runs/{run_id}:finish
-- GET /v1/runs (cursor pagination + filters)
-- GET /v1/runs/{run_id} + /steps
-- GET /v1/diff?runA=&runB=&normalize_profile=
-- Policies: GET/POST/activate
-- Approvals: create/list/approve/deny
+## Step ordering / concurrency
+- runs has next_seq integer
+- ingest transaction: SELECT run FOR UPDATE → allocate seq range → update next_seq → insert steps.
 
-## Diff engine (v1)
-- Deterministic diff for same inputs + normalize profile
-- Normalization profiles (JSONPath ignore rules)
-- Fingerprinting (tool_name + normalized args)
-- Alignment (fingerprint match + fallback positional)
-- Redaction-aware diffs: show “changed (redacted)” via payload_hash deltas
-- Cache DiffResult (per runA/runB/profile)
-
-## Postgres indexing & JSONB strategy
-Required indexes (v1):
-- runs: (tenant_id, project_id, started_at DESC), (tenant_id, project_id, status, started_at DESC)
+## Indexing strategy
 - steps: UNIQUE(run_id, seq), (tenant_id, run_id, seq), (tenant_id, ts)
-- approvals: (tenant_id, project_id, status, created_at DESC)
-Strategy:
-- Denormalize filterable fields into columns (tool_name, model_name, env, agent_version)
-- Keep full payload in JSONB for display; avoid deep JSON queries in hot paths
-Partitioning (v1.5):
-- Partition steps by time; retention via partition drops
+- runs: (tenant_id, project_id, started_at desc), (tenant_id, project_id, status, started_at desc)
+- approvals: (tenant_id, project_id, status, created_at desc)
+- Denormalize filter fields into columns; keep full payload JSONB for display.
 
-## Tenant isolation (defense-in-depth)
-- Enforce tenant_id scoping in every queryset + endpoint tests
-- Enable Postgres RLS in production
+## Tenant isolation
+- Enforce tenant scoping in every queryset + tests.
+- Enable Postgres RLS in production.
 
-## Redaction (v1)
-- Store **redacted-only** payloads
-- Server is authoritative: denylist keys/pattern rules + optional SDK annotations
-- Persist redaction_meta (paths + rule ids)
-
-## Operational NFRs (suggested)
-- Rate limits / quotas per tenant/project; backpressure via 429 + retry-after
-- p95 ingest latency target (typical batch) + p95 runs list latency
-- retention policy: reconcile run deletion vs audit immutability (tombstones or longer audit retention)
-- artifacts contract: store refs (uri, sha256, size, content_type) + optional S3
+## Operational contracts
+- Rate limits: 429 + Retry-After + X-RateLimit-* headers.
+- Cursor pagination only.
+- Retention: hard delete runs/steps per plan; audit longer with tombstones/hashes.

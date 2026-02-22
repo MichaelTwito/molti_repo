@@ -4,197 +4,162 @@
 Build a **multi-tenant observability + governance dashboard for AI agents**.
 
 Core value:
-- **Trace every run** (prompt stack, tool calls, artifacts, costs)
-- **Diff two runs** to explain regressions
-- **Enforce policy gates** (require approval / block) and keep an **audit log**
-
-Target users are developers/operators running agentic workflows in production (LangGraph-first).
+- Trace every run (timeline)
+- Diff two runs
+- Enforce policy gates + approvals with audit
 
 ---
 
 ## 1) Problem statement
-Teams deploying agentic systems struggle with:
-- **Debugging**: “Why did the agent do this?” and “What changed?”
-- **Reproducibility**: prompt/context/tool outputs vary and are hard to compare
-- **Governance**: tool actions can be risky; approvals need to be enforced and auditable
-- **Multi-tenant isolation**: traces and artifacts must not leak across customers
-
-Existing logs are unstructured, scattered, and non-comparable.
+Teams deploying agentic systems struggle with debugging, reproducibility, and governance.
 
 ---
 
 ## 2) Goals / Success criteria
-### Goals
-1. Provide a clear, searchable **run timeline** with structured events.
-2. Provide first-class **Run Diff** to identify changes across runs.
-3. Support **Policy evaluation** and **Approval gates** with immutable audit trail.
-4. Enforce **multi-tenant isolation** and data redaction.
-5. Be usable with minimal integration friction (LangGraph-first SDK).
-
-### Success criteria (measurable)
-- Time-to-root-cause for common incidents drops from hours → minutes.
-- Users can answer, from the UI:
-  - “Which prompt/tool output caused this?”
-  - “Which tool calls were blocked/approved and by whom?”
-- Zero cross-tenant data leakage (tested + monitored).
+- Clear run timeline
+- Run Diff
+- Policy + approvals
+- Tenant isolation + redaction
 
 ---
 
 ## 3) Non-goals
-- Model-weight interpretability (neurons/attention/causal tracing) in v1.
-- Full APM/infra monitoring (CPU, memory, traces across microservices).
-- Building a full agent framework. This product observes/governs runs.
+- Full infra APM
+- Model-weight interpretability
 
 ---
 
-## 4) Primary users (personas)
-1. **Agent Developer (Dev)**
-2. **Agent Operator (Ops/On-call)**
-3. **Security/Compliance (GRC-lite)**
+## 4) Functional requirements (summary)
+- Runs list + filters
+- Run timeline
+- Diff
+- Policies + approvals
+- RBAC
+- Redaction
 
 ---
 
-## 5) Core user journeys
-### Journey A: Debug a bad response
-Filter runs → open timeline → inspect steps → diff vs good run.
-
-### Journey B: Regression after prompt/tool change
-Select runA/runB → diff highlights prompt/tools/model/metadata changes.
-
-### Journey C: Risky action requires approval
-Risky tool call triggers approval request → approver decides → decision is audited and bound to execution.
-
----
-
-## 6) Functional requirements
-
-### 6.1 Runs list (Search / Filters)
-MUST:
-- List runs with: status, start time, duration, project, tenant, model(s), cost, tool count.
-- Filter by: time range, status, tool name, model, tenant_id, tags.
-- Pagination and stable ordering.
-
-### 6.2 Run detail (Timeline)
-MUST:
-- Timeline of steps: prompt/model/tool/policy/approval/error.
-- JSON view + redaction indicators.
-
-### 6.3 Run Diff (Two-run comparison)
-MUST:
-- Diff categories: prompt stack, tool calls, model config, metadata/tags.
-- **Deterministic output** for same inputs + normalize profile.
-- Redaction-aware diffs: show “changed (redacted)” based on hashes when needed.
-
-SHOULD:
-- Normalize noise fields via profiles.
-- Step alignment heuristics.
-
-### 6.4 Policies
-MUST:
-- Versioned policy sets per project.
-- Record policy eval event in run.
-
-### 6.5 Approvals
-MUST:
-- Approval request object includes tenant/project/run/step + action summary + risk label + payload hash.
-- Approve/deny + immutable audit log.
-
-### 6.6 Multi-tenant isolation & RBAC
-MUST:
-- Tenant isolation enforced at query + storage layers.
-- RBAC roles (v1 minimal): Admin, Approver, Viewer (Developer optional).
-
-### 6.7 Redaction & secrets handling
-MUST:
-- Store **redacted-only** payloads in v1.
-- Never store cookies/auth headers by default.
-
----
-
-## 7) UX / Information architecture
-Projects → Runs / Policies / Approvals / Settings.
-
----
-
-## 8) Data model (v1 conceptual)
-- Tenant, Project, User
-- Run
-- Step (append-only)
-- PolicySet (versioned)
-- ApprovalRequest + ApprovalDecision
-- AuditLog (append-only)
-
----
-
-## 9) APIs (v1 minimal)
-### Ingest
-- `POST /v1/runs` create run
-- `POST /v1/runs/{run_id}/steps` append steps (batch)
-- `POST /v1/runs/{run_id}:finish` finalize status/timestamps (**idempotent**)
-
-### Query
-- `GET /v1/runs` list with filters
-- `GET /v1/runs/{run_id}` run details
-- `GET /v1/runs/{run_id}/steps`
-- `GET /v1/diff?runA=...&runB=...`
-
-### Approvals
-- `POST /v1/approvals` create approval request
-- `POST /v1/approvals/{id}:approve`
-- `POST /v1/approvals/{id}:deny`
-
-### Policies
-- `GET /v1/policies`
-- `POST /v1/policies`
-
----
-
-## 10) Security, privacy, and compliance
-
-### Enforcement boundary (MUST)
+## 5) Enforcement boundary (MUST)
 - For tools marked require_approval/block, the server is the source of truth.
 - SDK must obtain a signed DecisionToken before executing the tool.
 - Tool execution events include DecisionToken nonce/id to bind “approved” → “executed”.
-- Break-glass is supported for Admins only and always audited.
-
-### RBAC (v1 minimal) (MUST)
-- Viewer: read runs/steps/diff
-- Approver: Viewer + approve/deny approvals
-- Admin: manage API keys, policies, retention settings, break-glass
-
-### Retention & deletion (MUST)
-- Run/Step payloads follow plan retention (e.g., 7/30/90 days) and are hard-deleted.
-- AuditLog retention is >= run retention (default 1 year) and may retain tombstones/hashes.
-
-### Search (MUST)
-- Only index/search whitelisted metadata fields (env, release, agent_version, tool_name, model_name, status).
-- Do not full-text search raw step payloads in v1.
+- Break-glass: Admin only, always audited.
 
 ---
 
-## 11) Performance / scale targets (initial)
-- Ingestion: handle bursts (e.g., 100 steps/sec per tenant) without UI degradation.
-- Query: runs list p95 <2s typical tenant (last 24h, <10k runs).
+## 6) Wire contracts (v1) — request/response shapes
+
+### Common
+- Auth: `Authorization: Bearer <token>`
+- `tenant_id` is derived from auth context (NOT accepted from client in request body)
+
+Error envelope:
+```json
+{
+  "error": {
+    "code": "string",
+    "message": "string",
+    "details": {"field": "message"},
+    "retryable": true
+  }
+}
+```
+
+### Run object
+```json
+{
+  "run_id": "uuid",
+  "project_id": "uuid",
+  "status": "running|succeeded|failed|canceled",
+  "started_at": "RFC3339",
+  "finished_at": "RFC3339|null",
+  "duration_ms": 1234,
+  "trace_id": "string|null",
+  "parent_run_id": "uuid|null",
+  "tags": {"env": "prod", "release": "..."},
+  "model_names": ["..."],
+  "tool_count": 12,
+  "cost_usd": 0.123
+}
+```
+
+### Step object (append-only)
+```json
+{
+  "step_id": "uuid",
+  "run_id": "uuid",
+  "seq": 42,
+  "ts": "RFC3339",
+  "type": "prompt|model|tool|policy|approval|error|artifact",
+  "name": "string",
+  "schema_version": 1,
+  "payload": {"redacted": true},
+  "payload_hash": "sha256:hex",
+  "redaction_meta": {
+    "paths": ["$.headers.authorization"],
+    "rules": [{"rule_id": "denylist.auth", "reason": "secret"}]
+  },
+  "tool_name": "string|null",
+  "model_name": "string|null",
+  "trace_id": "string|null",
+  "span_id": "string|null",
+  "decision_token_id": "string|null"
+}
+```
+
+### POST /v1/runs/{run_id}/steps (batch)
+Request:
+```json
+{ "steps": [ {"type":"tool","schema_version":1,"name":"...","ts":"...","payload":{}} ] }
+```
+
+Response:
+```json
+{
+  "run_id": "uuid",
+  "assigned": [
+    {"index": 0, "step_id": "uuid", "seq": 100},
+    {"index": 1, "step_id": "uuid", "seq": 101}
+  ]
+}
+```
 
 ---
 
-## 12) Rollout plan
-Alpha: timeline+search → Beta: multi-tenant+diff → Beta+: policies+approvals → GA: quotas/retention/RBAC hardening.
+## 7) APIs (v1 minimal)
+- POST /v1/runs
+- POST /v1/runs/{run_id}/steps
+- POST /v1/runs/{run_id}:finish (idempotent)
+- GET /v1/runs (cursor)
+- GET /v1/runs/{run_id}
+- GET /v1/runs/{run_id}/steps
+- GET /v1/diff?runA=&runB=&normalize_profile=
+- Policies: GET/POST/activate
+- Approvals: create/list/approve/deny
 
 ---
 
-## 13) Open questions / decisions
-- Storage: Postgres JSONB v1; partitioning later.
-- Diff alignment heuristics.
-- Approval UX + notifications.
+## 8) RBAC (v1 minimal)
+Auth types:
+- Ingest API keys: scoped to (tenant, project) and ingestion endpoints only.
+- UI users: session/JWT with RBAC roles.
+
+Matrix:
+- Viewer: GET runs/steps/diff, GET policies, GET approvals
+- Approver: Viewer + POST approvals/{id}:approve|deny
+- Admin: Approver + POST/activate policies, manage keys, retention, break-glass
 
 ---
 
-## 14) Milestones & Backlog (P0/P1/P2)
-(See previous version; unchanged in intent.)
+## 9) Retention & audit (v1)
+- Runs/steps: hard delete per plan.
+- AuditLog: retained longer (default 1 year) and may retain tombstones/hashes.
+- Optional: hash-chain audit rows for tamper evidence.
 
-## 15) Acceptance criteria (v1)
-- Can ingest demo run end-to-end.
-- Can view timeline.
-- Can diff two runs with meaningful deltas.
-- Tenant isolation validated with automated tests.
+---
+
+## 10) Rate limiting + pagination contract
+- 429 includes `Retry-After` seconds.
+- Headers: `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`.
+- Cursor is opaque; ordering: started_at desc + run_id tiebreak.
+
