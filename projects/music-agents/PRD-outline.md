@@ -17,23 +17,29 @@ Indie artists, managers, small labels (1–20 roster). Freelance promo/publicist
 ### KPIs
 Response rate, placement rate, time-to-first-response, qualified leads per track, deliverability/bounce rate, pipeline velocity.
 
+### MVP promise (be explicit)
+- **Spotify discovery is research-only. MVP does not promise curator emails.**
+- Core value is workflow: **upload/import contacts → compliant sequences → reply/outcome tracking**.
+
 ### Core flow (MVP)
-Track intake → **lead list discovery/scoring** → contact import/enrichment → pitch drafting → send + follow-up → outcome tracking.
+Track intake → optional research (Spotify) → **contact import (first-class)** → pitch drafting → send + follow-up → outcome tracking.
 
 ### Data sources & compliance constraints (MVP)
-- **Spotify Web API = metadata + discovery signals only** (playlist/owner IDs, follower counts, genre-ish signals). It does **not** reliably provide curator contact emails.
-- Supported contact sources in MVP:
+- **Spotify Web API = metadata + discovery signals only** (playlist/owner IDs, follower counts, basic proximity heuristics).
+- Allowed sources list (v1):
   1) **User-provided manual/CSV import** (name/email/platform/notes)
-  2) Optional enrichment provider integrations (TBD, ToS-compliant)
-- **No scraping of sources that disallow it**; “allowed sources” must be explicitly documented.
+  2) **Approved enrichment vendors under contract** (TBD; ToS-compliant)
+  3) First-party inbound leads provided by the user
+- Explicitly disallowed (v1): scraping sources that prohibit it, bypassing rate limits/paywalls.
+- Contact provenance must be stored: user import vs enrichment vendor.
 
 ### MVP features
 - Campaign per track
-- Playlist/lead discovery (Spotify search + similarity heuristics) + relevance scoring (“why relevant”)
 - CRM: contacts, status, notes, history
 - Pitch templates + AI draft + user review/approve
 - Gmail integration + basic sequences (e.g., 2 follow-ups) + **stop rules**
 - Dashboard (sent / replies / placements) + activity log
+- Optional research module: Spotify playlist discovery + simple relevance rationale (“why relevant”) without contact promises
 
 ### Email compliance & deliverability (MVP requirements)
 - Sending model: **send from the user’s connected Gmail mailbox** (OAuth), not a shared blasting domain.
@@ -43,7 +49,13 @@ Track intake → **lead list discovery/scoring** → contact import/enrichment �
   - Throttling: per-mailbox daily caps + spacing + jitter; scheduling windows
   - Bounce detection + auto-suppress
   - Audit trail: who sent what, when, and which template/version
-- Optional (off by default): open/click tracking.
+  - List hygiene: syntax validation, duplicate detection, role-account warnings (admin@, info@), optional per-domain throttling
+- Optional (off by default): open/click tracking (jurisdiction-dependent).
+
+### Compliance & privacy (MVP)
+- Document lawful basis stance for outreach (GDPR/UK GDPR considerations + CAN-SPAM basics).
+- Retention defaults must be explicit (store metadata vs bodies); full-body storage is opt-in.
+- Org data export + deletion flows (admin action).
 
 ### Non-goals (MVP)
 - Guaranteed placements
@@ -52,7 +64,7 @@ Track intake → **lead list discovery/scoring** → contact import/enrichment �
 - Automated placement detection (V1+)
 
 ### V1+
-Multi-channel (non-automated links), A/B testing subject/openers, placement monitoring where feasible, team collaboration/approvals.
+Gmail push notifications (Pub/Sub), A/B testing subject/openers, placement monitoring where feasible, team collaboration/approvals, optional enrichment integrations.
 
 ---
 
@@ -71,5 +83,6 @@ Splits/contracts/identifiers inconsistent → delayed/missing royalties and disp
 ## Open questions
 - B2C vs B2B first?
 - Email-only MVP acceptable for outreach?
-- Allowed data sources (Spotify-only vs Chartmetric/Songstats) and ToS policy?
+- Gmail-only MVP acceptable?
+- Allowed enrichment vendors and ToS policy?
 - Team/multi-org required day one?
