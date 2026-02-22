@@ -1,0 +1,22 @@
+{
+  "projects": [
+    {
+      "id": "agent-observability-dashboard",
+      "name": "Agent Observability Dashboard",
+      "tags": ["agents", "observability", "governance", "diff"],
+      "path": "projects/agent-observability-dashboard"
+    },
+    {
+      "id": "music-agents",
+      "name": "Music industry agents",
+      "tags": ["music", "agents", "ops"],
+      "path": "projects/music-agents"
+    },
+    {
+      "id": "synthcopilot",
+      "name": "SynthCopilot",
+      "tags": ["music", "synth", "vst", "midi"],
+      "path": "projects/synthcopilot"
+    }
+  ]
+}
