@@ -20,8 +20,12 @@ An internal agent that continuously checks relevant communities (starting with X
 - X API tokens in `x_tokens.json` (ignored by git)
 
 ## Outputs
-- `memory/marketing-agent/YYYY-MM-DD.md` daily report
+- `projects/marketing-agent/reports/YYYY-MM-DD-*.md` (versioned reports in git)
 - Optional: send summary to Telegram group/channel
+
+## Reports
+- Feasibility: `projects/marketing-agent/reports/2026-02-23-feasibility.md`
+- Decision memos: `projects/marketing-agent/reports/2026-02-23-decision-memos.md`
 
 ## Next
 - Add connectors: HN (Algolia), Reddit, GitHub
