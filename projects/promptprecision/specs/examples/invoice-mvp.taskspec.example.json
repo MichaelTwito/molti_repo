@@ -1,0 +1,76 @@
+{
+  "invoiceNumber": "INV-2026-0198",
+  "issueDate": "2026-02-10",
+  "dueDate": "2026-03-12",
+  "currency": "GBP",
+  "seller": {
+    "name": "ACME Office Supplies Ltd.",
+    "email": "billing@acme-office.example",
+    "phone": "+44 20 7946 0101",
+    "taxId": "GB123456789",
+    "address": {
+      "line1": "221 Baker St",
+      "city": "London",
+      "postalCode": "NW1 6XE",
+      "country": "GB"
+    }
+  },
+  "buyer": {
+    "name": "Brightside Consulting GmbH",
+    "email": "ap@brightside-consulting.example",
+    "address": {
+      "line1": "Friedrichstr. 12",
+      "city": "Berlin",
+      "postalCode": "10117",
+      "country": "DE"
+    }
+  },
+  "lineItems": [
+    {
+      "description": "A4 Paper Ream (80gsm)",
+      "quantity": 10,
+      "unitPrice": 3.5,
+      "unit": "ream",
+      "sku": "PAPER-A4-80",
+      "taxable": true,
+      "metadata": {
+        "glCode": "6110",
+        "costCenter": "OPS",
+        "vendorLineId": 1
+      }
+    },
+    {
+      "description": "Black Ink Cartridge",
+      "quantity": 2,
+      "unitPrice": 24,
+      "unit": "ea",
+      "sku": "INK-BLK-XL",
+      "taxable": true
+    },
+    {
+      "description": "Delivery (Standard)",
+      "quantity": 1,
+      "unitPrice": 5,
+      "unit": "shipment",
+      "taxable": true,
+      "metadata": {
+        "serviceLevel": "standard"
+      }
+    }
+  ],
+  "taxes": [
+    {
+      "name": "VAT",
+      "rate": 0.2,
+      "appliesTo": "taxableLineItems"
+    }
+  ],
+  "notes": "Thank you for your business.",
+  "paymentInstructions": "Bank transfer within 30 days. Reference: INV-2026-0198",
+  "metadata": {
+    "sourceFile": "acme-office-inv-2026-0198.pdf",
+    "pageCount": 1,
+    "ocrUsed": false,
+    "purchaseOrder": "PO-55821"
+  }
+}

@@ -23,7 +23,7 @@ This file is the durable index so Rick can ask for "status" even after /new or /
 
 ### PromptPrecision PM loop (dev group)
 - Channel: Telegram
-- chatId: -528866107
+- chatId: -5288661071
 - Purpose: Product iteration loop for PromptPrecision (PM + 3 dev subagents). Status updates each iteration.
 - Coordinator prompt: `promptprecision_pm_group_prompt.md`
 - Guardrail: never `git push` without explicit approval phrase: `APPROVE_PUSH`

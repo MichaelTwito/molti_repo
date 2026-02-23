@@ -1,0 +1,133 @@
+{
+  "$schema": "eval-report.v1.schema.json",
+  "schemaVersion": "eval-report.v1",
+  "metadata": {
+    "startedAtLocal": "2026-02-23T16:05:00+02:00",
+    "endedAtLocal": "2026-02-23T16:12:00+02:00",
+    "elapsedMs": 420000,
+    "evaluator": "Dev C",
+    "runId": "INV-EVAL-003",
+    "environment": {
+      "model": "gpt-5.2",
+      "app": "Invoice MVP v0.3.1",
+      "locale": "en-IL",
+      "currency": "ILS",
+      "rounding": {
+        "mode": "half-up",
+        "decimals": 2
+      }
+    }
+  },
+  "task": {
+    "taskName": "Generate invoice from line items",
+    "goal": "Produce a correct invoice summary with totals including VAT.",
+    "promptText": "Create an invoice for ACME Ltd. Items: (1) \"Design\" 3 hours @ 200 ILS/hour, (2) \"Hosting\" 1 month @ 50 ILS. VAT 17%. Output JSON with subtotal, vat, total."
+  },
+  "inputs": {
+    "userInputs": [
+      {
+        "type": "text",
+        "content": "Customer: ACME Ltd. Line items: Design (3×200 ILS), Hosting (1×50 ILS). VAT: 17%."
+      }
+    ],
+    "attachments": [],
+    "assumptions": {
+      "tax": {
+        "type": "VAT",
+        "rate": 0.17
+      },
+      "invoiceNumbering": "not specified",
+      "datePolicy": "use run date if needed"
+    }
+  },
+  "outputs": {
+    "primaryOutputs": [
+      {
+        "type": "json",
+        "name": "invoice-summary",
+        "content": {
+          "customerName": "ACME Ltd.",
+          "currency": "ILS",
+          "lineItems": [
+            {
+              "description": "Design",
+              "quantity": 3,
+              "unit": "hour",
+              "unitPrice": 200,
+              "lineTotal": 600
+            },
+            {
+              "description": "Hosting",
+              "quantity": 1,
+              "unit": "month",
+              "unitPrice": 50,
+              "lineTotal": 50
+            }
+          ],
+          "subtotal": 650.0,
+          "vatRate": 0.17,
+          "vat": 110.5,
+          "total": 760.5
+        }
+      }
+    ],
+    "sideEffects": [],
+    "logs": {
+      "errors": [],
+      "warnings": []
+    }
+  },
+  "checks": [
+    {
+      "id": "CHK-001",
+      "check": "Subtotal equals sum(line totals)",
+      "method": "manual",
+      "result": "pass",
+      "evidence": "3×200 + 1×50 = 650"
+    },
+    {
+      "id": "CHK-002",
+      "check": "VAT equals 17% of subtotal",
+      "method": "manual",
+      "result": "pass",
+      "evidence": "0.17×650 = 110.50"
+    },
+    {
+      "id": "CHK-003",
+      "check": "Total equals subtotal + VAT",
+      "method": "manual",
+      "result": "pass",
+      "evidence": "650.00 + 110.50 = 760.50"
+    },
+    {
+      "id": "CHK-004",
+      "check": "Currency preserved as ILS",
+      "method": "manual",
+      "result": "pass",
+      "evidence": "Output JSON currency field is ILS; unit prices expressed in ILS"
+    }
+  ],
+  "overallResult": {
+    "status": "PASS",
+    "severityIfFail": null,
+    "reasonIfFail": null
+  },
+  "timingBreakdown": {
+    "setupMs": 60000,
+    "runMs": 240000,
+    "verificationMs": 120000
+  },
+  "notes": {
+    "observations": [
+      "Output format was correct and numeric rounding consistent.",
+      "Consider adding an explicit check for invoice number/date formatting once implemented."
+    ],
+    "followUps": [
+      {
+        "type": "test",
+        "title": "Add acceptance criteria for invoice number and invoice date format",
+        "priority": "P2"
+      }
+    ]
+  }
+}

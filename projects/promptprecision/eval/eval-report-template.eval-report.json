@@ -1,0 +1,41 @@
+{
+  "$schema": "./eval-report.v1.schema.json",
+  "schemaVersion": "eval-report.v1",
+  "metadata": {
+    "runId": "<RUN_ID>"
+  },
+  "task": {
+    "goal": "<1 sentence goal>",
+    "taskSpecPath": "<PATH/URL (optional)>"
+  },
+  "inputs": {
+    "userInputs": [
+      {
+        "type": "text",
+        "content": "<USER INPUT>"
+      }
+    ]
+  },
+  "outputs": {
+    "primaryOutputs": [
+      {
+        "type": "text",
+        "content": "<OUTPUT>"
+      }
+    ]
+  },
+  "checks": [
+    {
+      "id": "CHK-001",
+      "check": "<atomic expectation>",
+      "method": "manual",
+      "result": "pass",
+      "evidence": "<what you observed / how verified>"
+    }
+  ],
+  "overallResult": {
+    "status": "PASS",
+    "severityIfFail": null,
+    "reasonIfFail": null
+  }
+}

@@ -19,6 +19,10 @@ Return:
 - an **eval report** (before/after)
 - a reproducible deployment recipe (Ollama/vLLM/TFM)
 
+## Project status
+- **Current iteration status:** `projects/promptprecision/status.md`
+- **Append-only iteration log:** `projects/promptprecision/iteration_log.md`
+
 ## Wedge (MVP)
 **Structured extraction / classification** for SMB/indie teams (support inbox, sales triage, ops):
 - Input: email/ticket/text

@@ -1,0 +1,164 @@
+{
+  "$schema": "../eval-report.v1.schema.json",
+  "schemaVersion": "eval-report.v1",
+  "metadata": {
+    "runId": "invoice_mvp_extract_v1__run-001",
+    "startedAtLocal": "2026-02-23T16:05:00+02:00",
+    "endedAtLocal": "2026-02-23T16:12:00+02:00",
+    "elapsedMs": 420000,
+    "evaluator": "promptprecision",
+    "environment": {
+      "model": "gpt-5.2",
+      "locale": "en-IL",
+      "notes": "Example run (hand-constructed)"
+    }
+  },
+  "task": {
+    "taskId": "invoice_mvp_extract_v1",
+    "taskVersion": "1.0.0",
+    "taskName": "Invoice MVP Extract v1",
+    "goal": "Extract structured fields from invoice text as JSON.",
+    "promptText": "You extract structured data from invoices. Output ONLY valid JSON that conforms to the provided JSON Schema. Do not include markdown, explanations, or additional keys.\n\nExtract the invoice fields from the text below. If a field is not present, use null (do not guess). If you are unsure, still return your best parse but keep unknowns as null.\n\nINVOICE TEXT:\n<see inputs.userInputs[0].content>\n\nReturn JSON that matches the schema.",
+    "taskSpecPath": "projects/promptprecision/specs/examples/invoice-mvp.taskspec.json"
+  },
+  "inputs": {
+    "userInputs": [
+      {
+        "type": "text",
+        "content": "ACME Office Supplies Ltd.\n221 Baker St, London\nVAT: GB123456789\n\nINVOICE\nInvoice #: INV-2026-0198\nInvoice Date: 2026-02-10\nDue Date: 2026-03-12\nPO: PO-55821\nBill To: Brightside Consulting GmbH, Friedrichstr. 12, Berlin\n\nLine Items\n1) A4 Paper Ream (80gsm)    Qty 10    Unit £3.50    Line £35.00    VAT 20% £7.00\n2) Black Ink Cartridge       Qty 2     Unit £24.00   Line £48.00    VAT 20% £9.60\n3) Delivery (Standard)       Qty 1     Unit £5.00    Line £5.00     VAT 20% £1.00\n\nSubtotal: £88.00\nVAT (20%): £17.60\nTotal: £105.60\nPayment terms: Net 30\nContact: billing@acme-office.example | +44 20 7946 0101\n"
+      }
+    ],
+    "attachments": [],
+    "assumptions": {
+      "nullWhenMissing": true,
+      "noAdditionalKeys": true
+    }
+  },
+  "outputs": {
+    "primaryOutputs": [
+      {
+        "type": "json",
+        "name": "invoice_extraction",
+        "content": {
+          "document_type": "invoice",
+          "vendor": {
+            "name": "ACME Office Supplies Ltd.",
+            "tax_id": "GB123456789",
+            "address": "221 Baker St, London",
+            "email": "billing@acme-office.example",
+            "phone": "+44 20 7946 0101"
+          },
+          "buyer": {
+            "name": "Brightside Consulting GmbH",
+            "address": "Friedrichstr. 12, Berlin",
+            "tax_id": null
+          },
+          "invoice": {
+            "invoice_number": "INV-2026-0198",
+            "purchase_order_number": "PO-55821",
+            "invoice_date": "2026-02-10",
+            "due_date": "2026-03-12",
+            "payment_terms": "Net 30",
+            "currency": "GBP",
+            "notes": null
+          },
+          "amounts": {
+            "subtotal": 88.0,
+            "tax_total": 17.6,
+            "shipping": 5.0,
+            "discount": null,
+            "total": 105.6,
+            "amount_due": 105.6
+          },
+          "line_items": [
+            {
+              "sku": null,
+              "description": "A4 Paper Ream (80gsm)",
+              "quantity": 10,
+              "unit_price": 3.5,
+              "tax_rate": 0.2,
+              "tax_amount": 7.0,
+              "line_total": 35.0
+            },
+            {
+              "sku": null,
+              "description": "Black Ink Cartridge",
+              "quantity": 2,
+              "unit_price": 24.0,
+              "tax_rate": 0.2,
+              "tax_amount": 9.6,
+              "line_total": 48.0
+            },
+            {
+              "sku": null,
+              "description": "Delivery (Standard)",
+              "quantity": 1,
+              "unit_price": 5.0,
+              "tax_rate": 0.2,
+              "tax_amount": 1.0,
+              "line_total": 5.0
+            }
+          ],
+          "confidence": {
+            "overall": 0.91,
+            "invoice_number": 0.98,
+            "invoice_date": 0.97,
+            "due_date": 0.9,
+            "subtotal": 0.96,
+            "tax_total": 0.95,
+            "total": 0.97
+          },
+          "source": {
+            "filename": "acme-office-inv-2026-0198.pdf",
+            "page_count": 1,
+            "ocr_used": false
+          }
+        }
+      }
+    ],
+    "sideEffects": [],
+    "logs": {
+      "errors": [],
+      "warnings": []
+    }
+  },
+  "checks": [
+    {
+      "id": "schema.json_valid",
+      "check": "Output is valid JSON (parseable)",
+      "method": "manual",
+      "result": "pass",
+      "evidence": "primaryOutputs[0].content is a JSON object"
+    },
+    {
+      "id": "schema.no_additional_keys",
+      "check": "No additional keys beyond the TaskSpec IO schema",
+      "method": "manual",
+      "result": "pass",
+      "evidence": "All top-level keys are within {document_type,vendor,buyer,invoice,amounts,line_items,confidence,source}"
+    },
+    {
+      "id": "arith.line_items_sum",
+      "check": "Subtotal ≈ sum(line_items[].line_total)",
+      "method": "manual",
+      "result": "pass",
+      "evidence": "35.00 + 48.00 + 5.00 = 88.00"
+    },
+    {
+      "id": "arith.totals_equation",
+      "check": "Total ≈ subtotal + tax_total (and includes shipping where applicable)",
+      "method": "manual",
+      "result": "pass",
+      "evidence": "88.00 + 17.60 = 105.60 (shipping already represented as a line item)"
+    }
+  ],
+  "overallResult": {
+    "status": "PASS",
+    "severityIfFail": null,
+    "reasonIfFail": null
+  },
+  "notes": {
+    "source": "Derived from specs/examples/invoice-mvp.taskspec.json example payloads.",
+    "caveat": "This file demonstrates the EvalReport format; it does not itself validate the model output against the TaskSpec schema (separate concern)."
+  }
+}

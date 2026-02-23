@@ -1,0 +1,242 @@
+{
+  "task_id": "invoice_mvp_extract_v1",
+  "task_version": "1.0.0",
+  "base_model_id": "Qwen/Qwen2.5-3B-Instruct",
+  "system_prompt": "You extract structured data from invoices. Output ONLY valid JSON that conforms to the provided JSON Schema. Do not include markdown, explanations, or additional keys.",
+  "instruction_template": "Extract the invoice fields from the text below. If a field is not present, use null (do not guess). If you are unsure, still return your best parse but keep unknowns as null.\n\nINVOICE TEXT:\n{{input_text}}\n\nReturn JSON that matches the schema.",
+  "io_schema": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "InvoiceExtraction",
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "document_type",
+      "vendor",
+      "invoice",
+      "amounts",
+      "line_items",
+      "confidence"
+    ],
+    "properties": {
+      "document_type": {
+        "type": "string",
+        "const": "invoice"
+      },
+      "vendor": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name"],
+        "properties": {
+          "name": { "type": "string", "minLength": 1 },
+          "tax_id": { "type": ["string", "null"] },
+          "address": { "type": ["string", "null"] },
+          "email": { "type": ["string", "null"] },
+          "phone": { "type": ["string", "null"] }
+        }
+      },
+      "buyer": {
+        "type": ["object", "null"],
+        "additionalProperties": false,
+        "required": ["name"],
+        "properties": {
+          "name": { "type": "string", "minLength": 1 },
+          "address": { "type": ["string", "null"] },
+          "tax_id": { "type": ["string", "null"] }
+        }
+      },
+      "invoice": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["invoice_number", "invoice_date", "currency"],
+        "properties": {
+          "invoice_number": { "type": "string", "minLength": 1 },
+          "purchase_order_number": { "type": ["string", "null"] },
+          "invoice_date": {
+            "type": "string",
+            "description": "ISO-8601 date (YYYY-MM-DD) when possible.",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "due_date": {
+            "type": ["string", "null"],
+            "description": "ISO-8601 date (YYYY-MM-DD) when present.",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "payment_terms": { "type": ["string", "null"] },
+          "currency": {
+            "type": "string",
+            "description": "ISO 4217 currency code",
+            "minLength": 3,
+            "maxLength": 3
+          },
+          "notes": { "type": ["string", "null"] }
+        }
+      },
+      "amounts": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["subtotal", "tax_total", "total"],
+        "properties": {
+          "subtotal": { "type": "number" },
+          "tax_total": { "type": "number" },
+          "shipping": { "type": ["number", "null"] },
+          "discount": { "type": ["number", "null"] },
+          "total": { "type": "number" },
+          "amount_due": { "type": ["number", "null"] }
+        }
+      },
+      "line_items": {
+        "type": "array",
+        "minItems": 1,
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["description", "quantity", "unit_price", "line_total"],
+          "properties": {
+            "sku": { "type": ["string", "null"] },
+            "description": { "type": "string", "minLength": 1 },
+            "quantity": { "type": "number" },
+            "unit_price": { "type": "number" },
+            "tax_rate": { "type": ["number", "null"], "description": "Tax rate as a fraction, e.g. 0.17 for 17%" },
+            "tax_amount": { "type": ["number", "null"] },
+            "line_total": { "type": "number" }
+          }
+        }
+      },
+      "confidence": {
+        "type": "object",
+        "description": "Per-field confidence in [0,1].",
+        "additionalProperties": false,
+        "required": ["overall"],
+        "properties": {
+          "overall": { "type": "number", "minimum": 0, "maximum": 1 },
+          "invoice_number": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+          "invoice_date": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+          "due_date": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+          "subtotal": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+          "tax_total": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+          "total": { "type": ["number", "null"], "minimum": 0, "maximum": 1 }
+        }
+      },
+      "source": {
+        "type": ["object", "null"],
+        "additionalProperties": false,
+        "properties": {
+          "filename": { "type": ["string", "null"] },
+          "page_count": { "type": ["integer", "null"], "minimum": 1 },
+          "ocr_used": { "type": ["boolean", "null"] }
+        }
+      }
+    }
+  },
+  "label_enums": {
+    "currency": ["USD", "EUR", "GBP", "ILS"],
+    "document_type": ["invoice"]
+  },
+  "rubric": {
+    "json_schema_valid": true,
+    "forbid_additional_keys": true,
+    "null_when_missing": true,
+    "checks": [
+      {
+        "id": "totals_equation",
+        "description": "Validate total ≈ subtotal + tax_total + shipping - discount",
+        "tolerance": 0.02
+      },
+      {
+        "id": "line_items_sum",
+        "description": "Validate subtotal ≈ sum(line_total)",
+        "tolerance": 0.05
+      }
+    ],
+    "scoring": {
+      "field_exact_match_weight": 0.6,
+      "schema_validity_weight": 0.25,
+      "arithmetic_checks_weight": 0.15
+    }
+  },
+  "eval_split": {
+    "strategy": "random",
+    "train_ratio": 0.8,
+    "val_ratio": 0.1,
+    "test_ratio": 0.1,
+    "seed": 42
+  },
+  "example": {
+    "input_text": "ACME Office Supplies Ltd.\n221 Baker St, London\nVAT: GB123456789\n\nINVOICE\nInvoice #: INV-2026-0198\nInvoice Date: 2026-02-10\nDue Date: 2026-03-12\nPO: PO-55821\nBill To: Brightside Consulting GmbH, Friedrichstr. 12, Berlin\n\nLine Items\n1) A4 Paper Ream (80gsm)    Qty 10    Unit £3.50    Line £35.00    VAT 20% £7.00\n2) Black Ink Cartridge       Qty 2     Unit £24.00   Line £48.00    VAT 20% £9.60\n3) Delivery (Standard)       Qty 1     Unit £5.00    Line £5.00     VAT 20% £1.00\n\nSubtotal: £88.00\nVAT (20%): £17.60\nTotal: £105.60\nPayment terms: Net 30\nContact: billing@acme-office.example | +44 20 7946 0101\n",
+    "output_json": {
+      "document_type": "invoice",
+      "vendor": {
+        "name": "ACME Office Supplies Ltd.",
+        "tax_id": "GB123456789",
+        "address": "221 Baker St, London",
+        "email": "billing@acme-office.example",
+        "phone": "+44 20 7946 0101"
+      },
+      "buyer": {
+        "name": "Brightside Consulting GmbH",
+        "address": "Friedrichstr. 12, Berlin",
+        "tax_id": null
+      },
+      "invoice": {
+        "invoice_number": "INV-2026-0198",
+        "purchase_order_number": "PO-55821",
+        "invoice_date": "2026-02-10",
+        "due_date": "2026-03-12",
+        "payment_terms": "Net 30",
+        "currency": "GBP",
+        "notes": null
+      },
+      "amounts": {
+        "subtotal": 88.0,
+        "tax_total": 17.6,
+        "shipping": 5.0,
+        "discount": null,
+        "total": 105.6,
+        "amount_due": 105.6
+      },
+      "line_items": [
+        {
+          "sku": null,
+          "description": "A4 Paper Ream (80gsm)",
+          "quantity": 10,
+          "unit_price": 3.5,
+          "tax_rate": 0.2,
+          "tax_amount": 7.0,
+          "line_total": 35.0
+        },
+        {
+          "sku": null,
+          "description": "Black Ink Cartridge",
+          "quantity": 2,
+          "unit_price": 24.0,
+          "tax_rate": 0.2,
+          "tax_amount": 9.6,
+          "line_total": 48.0
+        },
+        {
+          "sku": null,
+          "description": "Delivery (Standard)",
+          "quantity": 1,
+          "unit_price": 5.0,
+          "tax_rate": 0.2,
+          "tax_amount": 1.0,
+          "line_total": 5.0
+        }
+      ],
+      "confidence": {
+        "overall": 0.91,
+        "invoice_number": 0.98,
+        "invoice_date": 0.97,
+        "due_date": 0.9,
+        "subtotal": 0.96,
+        "tax_total": 0.95,
+        "total": 0.97
+      },
+      "source": {
+        "filename": "acme-office-inv-2026-0198.pdf",
+        "page_count": 1,
+        "ocr_used": false
+      }
+    }
+  }
+}

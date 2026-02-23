@@ -1,0 +1,166 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://promptprecision.local/schemas/invoice-mvp.taskspec.schema.json",
+  "title": "Invoice MVP TaskSpec",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "invoiceNumber",
+    "issueDate",
+    "dueDate",
+    "currency",
+    "seller",
+    "buyer",
+    "lineItems"
+  ],
+  "properties": {
+    "invoiceNumber": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Human-facing invoice identifier (not necessarily unique globally)."
+    },
+    "issueDate": {
+      "type": "string",
+      "format": "date",
+      "description": "Invoice issue date in ISO-8601 date format (YYYY-MM-DD)."
+    },
+    "dueDate": {
+      "type": "string",
+      "format": "date",
+      "description": "Payment due date in ISO-8601 date format (YYYY-MM-DD)."
+    },
+    "currency": {
+      "type": "string",
+      "pattern": "^[A-Z]{3}$",
+      "description": "ISO-4217 currency code (e.g., USD, EUR)."
+    },
+    "seller": { "$ref": "#/$defs/party" },
+    "buyer": { "$ref": "#/$defs/party" },
+    "lineItems": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/lineItem" },
+      "description": "Invoice line items (at least one)."
+    },
+    "taxes": {
+      "type": "array",
+      "default": [],
+      "items": { "$ref": "#/$defs/tax" },
+      "description": "Optional invoice-level taxes (e.g., VAT). If provided, each tax is either rate-based or amount-based."
+    },
+    "notes": {
+      "type": "string",
+      "default": "",
+      "description": "Free-form human notes to appear on the invoice."
+    },
+    "paymentInstructions": {
+      "type": "string",
+      "default": "",
+      "description": "Optional payment instructions (bank transfer, etc.)."
+    },
+    "metadata": {
+      "type": "object",
+      "default": {},
+      "additionalProperties": {
+        "oneOf": [
+          { "type": "string" },
+          { "type": "number" },
+          { "type": "boolean" },
+          { "type": "null" }
+        ]
+      },
+      "description": "Arbitrary key/value metadata for internal systems; values must be primitive JSON types."
+    }
+  },
+  "$defs": {
+    "money": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Non-negative monetary amount in invoice currency."
+    },
+    "party": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "email": { "type": "string", "format": "email" },
+        "phone": { "type": "string", "minLength": 3 },
+        "taxId": { "type": "string", "minLength": 1, "description": "VAT/Tax identifier." },
+        "address": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "line1": { "type": "string", "minLength": 1 },
+            "line2": { "type": "string" },
+            "city": { "type": "string" },
+            "region": { "type": "string" },
+            "postalCode": { "type": "string" },
+            "country": {
+              "type": "string",
+              "pattern": "^[A-Z]{2}$",
+              "description": "ISO-3166-1 alpha-2 country code (e.g., US, IL)."
+            }
+          }
+        }
+      }
+    },
+    "lineItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["description", "quantity", "unitPrice"],
+      "properties": {
+        "description": { "type": "string", "minLength": 1 },
+        "quantity": { "type": "number", "exclusiveMinimum": 0, "default": 1 },
+        "unitPrice": { "$ref": "#/$defs/money" },
+        "unit": { "type": "string", "default": "" },
+        "sku": { "type": "string" },
+        "taxable": { "type": "boolean", "default": true },
+        "metadata": {
+          "type": "object",
+          "default": {},
+          "additionalProperties": {
+            "oneOf": [
+              { "type": "string" },
+              { "type": "number" },
+              { "type": "boolean" },
+              { "type": "null" }
+            ]
+          }
+        }
+      }
+    },
+    "tax": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1, "description": "Tax label (e.g., VAT, GST)." },
+        "rate": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Tax rate as a fraction (e.g., 0.17 for 17%)."
+        },
+        "amount": {
+          "$ref": "#/$defs/money",
+          "description": "Explicit tax amount in invoice currency (use when not rate-based)."
+        },
+        "appliesTo": {
+          "type": "string",
+          "enum": ["invoice", "taxableLineItems"],
+          "default": "taxableLineItems",
+          "description": "Whether this tax applies to invoice subtotal or only taxable line items."
+        }
+      },
+      "allOf": [
+        {
+          "oneOf": [
+            { "required": ["rate"], "not": { "required": ["amount"] } },
+            { "required": ["amount"], "not": { "required": ["rate"] } }
+          ]
+        }
+      ]
+    }
+  }
+}

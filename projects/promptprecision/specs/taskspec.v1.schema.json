@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://promptprecision.local/schemas/taskspec.v1.schema.json",
+  "title": "PromptPrecision TaskSpec (v1)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "task_id",
+    "task_version",
+    "base_model_id",
+    "system_prompt",
+    "instruction_template",
+    "io_schema",
+    "rubric",
+    "eval_split"
+  ],
+  "properties": {
+    "task_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Stable identifier for the task (snake_case recommended)."
+    },
+    "task_version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "description": "Semantic version for the task contract (MAJOR.MINOR.PATCH)."
+    },
+    "base_model_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "HF model id or local model identifier (e.g., Qwen/Qwen2.5-3B-Instruct)."
+    },
+    "system_prompt": { "type": "string", "minLength": 1 },
+    "instruction_template": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Template with a placeholder like {{input_text}} (implementation-defined)."
+    },
+    "io_schema": {
+      "type": "object",
+      "description": "JSON Schema describing the required model output JSON. (Stored inline; draft is task-defined.)"
+    },
+    "label_enums": {
+      "type": "object",
+      "default": {},
+      "additionalProperties": {
+        "type": "array",
+        "items": { "type": "string" }
+      },
+      "description": "Optional enums for constrained fields (helps scoring + generation)."
+    },
+    "rubric": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "How to judge correctness. Free-form for MVP; should include checks and scoring weights."
+    },
+    "eval_split": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["strategy"],
+      "properties": {
+        "strategy": { "type": "string", "enum": ["random"] },
+        "train_ratio": { "type": "number", "minimum": 0, "maximum": 1 },
+        "val_ratio": { "type": "number", "minimum": 0, "maximum": 1 },
+        "test_ratio": { "type": "number", "minimum": 0, "maximum": 1 },
+        "seed": { "type": "integer" }
+      }
+    },
+    "example": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["input_text", "output_json"],
+      "properties": {
+        "input_text": { "type": "string" },
+        "output_json": { "type": "object" }
+      },
+      "description": "Optional single example to sanity-check prompt + schema." 
+    }
+  }
+}
