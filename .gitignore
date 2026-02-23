@@ -1,0 +1,17 @@
+# Secrets
+**/garmin_credentials.json
+x_credentials.json
+x_oauth.json
+x_tokens.json
+**/*credentials*.json
+
+# Runtime
+__pycache__/
+*.pyc
+*.sqlite
+*.db
+*.db-wal
+*.db-shm
+
+# Local venv
+venv/
