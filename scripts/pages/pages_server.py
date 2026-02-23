@@ -67,6 +67,14 @@ def sync_loop() -> None:
 
 
 def main() -> None:
+    # Ensure we have content before serving
+    try:
+        sync_once()
+        print(f"[pages] initial sync OK", flush=True)
+    except Exception as e:
+        # Still start server, but it may serve an empty dir until next sync succeeds.
+        print(f"[pages] initial sync error: {e}", flush=True)
+
     # Start sync thread
     t = threading.Thread(target=sync_loop, daemon=True)
     t.start()
@@ -74,7 +82,7 @@ def main() -> None:
     # Serve files
     os.chdir(str(PAGES_DIR))
     httpd = ThreadingHTTPServer((BIND, PORT), SimpleHTTPRequestHandler)
-    print(f"[pages] serving {PAGES_DIR} on http://{BIND}:{PORT} (sync every {SYNC_EVERY_SEC}s)")
+    print(f"[pages] serving {PAGES_DIR} on http://{BIND}:{PORT} (sync every {SYNC_EVERY_SEC}s)", flush=True)
     httpd.serve_forever()
 
 
