@@ -12,7 +12,7 @@ python3 scripts/pages/pages_server.py
 ```
 
 Env overrides:
-- `PAGES_REPO_URL` (default: `git@github.com:MichaelTwito/molti_repo.git`)
+- `PAGES_REPO_URL` (default: `/home/michael/.openclaw/workspace`)
 - `PAGES_DIR` (default: `/home/michael/.openclaw/pages_repo`)
 - `PAGES_BRANCH` (default: `main`)
 - `PAGES_BIND` (default: `0.0.0.0`)

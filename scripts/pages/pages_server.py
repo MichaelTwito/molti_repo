@@ -24,7 +24,9 @@ import time
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 from pathlib import Path
 
-REPO_URL = os.environ.get('PAGES_REPO_URL', 'git@github.com:MichaelTwito/molti_repo.git')
+# Default to cloning from the local dev repo (clean deploy clone), to avoid SSH issues.
+# The main repo can be kept up-to-date via normal "git pull" / pushes.
+REPO_URL = os.environ.get('PAGES_REPO_URL', '/home/michael/.openclaw/workspace')
 PAGES_DIR = Path(os.environ.get('PAGES_DIR', '/home/michael/.openclaw/pages_repo'))
 BRANCH = os.environ.get('PAGES_BRANCH', 'main')
 BIND = os.environ.get('PAGES_BIND', '0.0.0.0')
@@ -42,8 +44,12 @@ def run(cmd: list[str], cwd: Path | None = None) -> str:
 def ensure_clone() -> None:
     if (PAGES_DIR / '.git').exists():
         return
-    PAGES_DIR.parent.mkdir(parents=True, exist_ok=True)
-    run(['git', 'clone', '--depth', '1', '--branch', BRANCH, REPO_URL, str(PAGES_DIR)])
+    # (Re)create as a clean git clone from the local workspace repo.
+    PAGES_DIR.mkdir(parents=True, exist_ok=True)
+    # Clone into the directory; prefer a local clone for speed and to avoid SSH auth issues.
+    run(['git', 'clone', '--local', '--no-hardlinks', REPO_URL, str(PAGES_DIR)])
+    # Ensure we're on the desired branch.
+    run(['git', 'checkout', BRANCH], cwd=PAGES_DIR)
 
 
 def sync_once() -> None:
