@@ -1,0 +1,60 @@
+{
+  "invoiceNumber": "INV-2026-0007",
+  "issueDate": "2026-02-20",
+  "dueDate": "2026-03-06",
+  "currency": "USD",
+  "seller": {
+    "name": "Acme Software Ltd.",
+    "email": "billing@acme.example",
+    "taxId": "US-12-3456789",
+    "address": {
+      "line1": "123 Market St",
+      "city": "San Francisco",
+      "region": "CA",
+      "postalCode": "94105",
+      "country": "US"
+    }
+  },
+  "buyer": {
+    "name": "PromptPrecision Inc.",
+    "email": "ap@promptprecision.example",
+    "address": {
+      "line1": "45 Rothschild Blvd",
+      "city": "Tel Aviv",
+      "country": "IL"
+    }
+  },
+  "lineItems": [
+    {
+      "description": "PromptPrecision subscription (Feb 2026)",
+      "quantity": 1,
+      "unitPrice": 199.0,
+      "unit": "month",
+      "taxable": true,
+      "metadata": {
+        "plan": "pro",
+        "period": "2026-02"
+      }
+    },
+    {
+      "description": "Onboarding / setup",
+      "quantity": 2,
+      "unitPrice": 150.0,
+      "unit": "hour",
+      "taxable": true
+    }
+  ],
+  "taxes": [
+    {
+      "name": "VAT",
+      "rate": 0.17,
+      "appliesTo": "taxableLineItems"
+    }
+  ],
+  "notes": "Thank you for your business.",
+  "paymentInstructions": "Pay by bank transfer within 14 days.",
+  "metadata": {
+    "source": "invoice_pdf_2026-02-20",
+    "extractedBy": "promptprecision-invoice-mvp"
+  }
+}
